@@ -3,7 +3,7 @@ name: Bootstrap sanitized portfolio source
 on:
   push:
     paths:
-      - ".bootstrap/READY"
+      - ".bootstrap2/READY"
 
 permissions:
   contents: write
@@ -19,9 +19,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .bootstrap/part-* | tr -d '\n' | base64 -d > /tmp/repo.tar.gz
+          cat .bootstrap2/part-* | tr -d '\n' | base64 -d > /tmp/repo.tar.gz
           tar -xzf /tmp/repo.tar.gz --strip-components=1 -C .
-          rm -rf .bootstrap
+          rm -rf .bootstrap .bootstrap2
           rm -f .github/workflows/bootstrap.yml
       - name: Commit source
         shell: bash
