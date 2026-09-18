@@ -1,6 +1,6 @@
 import { Rol } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { assertClassAccess } from '../../lib/access';
+import { assertClassAccess, assertPlanningWriteAccess } from '../../lib/access';
 
 const INCLUDE = {
   estudiantes: { include: { estudiante: { select: { id: true, nombre: true } } } },
@@ -41,7 +41,7 @@ export async function create(
   rol: Rol
 ) {
   const claseId = await getPlanClass(planificacionId);
-  await assertClassAccess(userId, rol, claseId);
+  await assertPlanningWriteAccess(userId, rol, planificacionId);
 
   const studentsOutsideClass = await prisma.estudiante.count({
     where: {
@@ -72,7 +72,7 @@ export async function update(
   rol: Rol
 ) {
   const current = await getAdaptation(id);
-  await assertClassAccess(userId, rol, current.planificacion.claseId);
+  await assertPlanningWriteAccess(userId, rol, current.planificacionId);
 
   if (data.estudianteIds !== undefined) {
     const studentsOutsideClass = await prisma.estudiante.count({
@@ -105,6 +105,6 @@ export async function update(
 
 export async function remove(id: string, userId: string, rol: Rol) {
   const current = await getAdaptation(id);
-  await assertClassAccess(userId, rol, current.planificacion.claseId);
+  await assertPlanningWriteAccess(userId, rol, current.planificacionId);
   await prisma.adaptacion.delete({ where: { id } });
 }
