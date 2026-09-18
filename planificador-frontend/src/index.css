@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fc {
+  height: 100%;
+  font-family: inherit;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fc .fc-button {
+  background-color: #1e40af;
+  border-color: #1e40af;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+}
+
+.fc .fc-button:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: #1e3a8a;
+  border-color: #1e3a8a;
+}
+
+.fc .fc-daygrid-event {
+  border-radius: 4px;
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
+.fc .fc-day-today {
+  background-color: #eff6ff !important;
+}
+
+.fc .fc-daygrid-day-number {
+  font-size: 0.8rem;
+  padding: 4px 6px;
+}
+
+.fc .fc-col-header-cell-cushion {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
