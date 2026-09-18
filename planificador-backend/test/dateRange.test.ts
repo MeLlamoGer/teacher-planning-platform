@@ -1,10 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertDateRange, parseDateOnly, rangesOverlap } from '../src/lib/dateRange';
+import {
+  assertDateRange,
+  parseDateOnly,
+  rangesOverlap,
+  todayDateOnlyUtc,
+} from '../src/lib/dateRange';
 
 test('parseDateOnly normalizes dates to midnight UTC', () => {
   const parsed = parseDateOnly('2026-09-18');
   assert.equal(parsed.toISOString(), '2026-09-18T00:00:00.000Z');
+});
+
+test('todayDateOnlyUtc strips time without depending on local timezone', () => {
+  const today = todayDateOnlyUtc(new Date('2026-09-18T23:45:00-03:00'));
+  assert.equal(today.toISOString(), '2026-09-19T00:00:00.000Z');
 });
 
 test('assertDateRange rejects an end before the start', () => {

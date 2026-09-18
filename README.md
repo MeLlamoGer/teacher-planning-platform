@@ -1,11 +1,23 @@
 # Teacher Planning Platform
 
+[![CI](https://github.com/MeLlamoGer/teacher-planning-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/MeLlamoGer/teacher-planning-platform/actions/workflows/ci.yml)
+
 A full-stack prototype for primary-school lesson planning, curriculum alignment and role-based collaboration.
 
 The application models a school workflow rather than a generic CRUD demo: teachers plan against structured curriculum content, administrators manage classes/users, substitutes receive temporary access, and student-specific support/adaptations can be represented.
 
 > **Portfolio / privacy note**
 > The public version is anonymized. Demo student records are synthetic and no real student data, school credentials or private deployment secrets are included.
+
+## Review in 60 seconds
+
+If you're reviewing this as an engineering portfolio, the strongest parts are:
+
+1. **[Prisma domain model](planificador-backend/prisma/schema.prisma)** — classes, curriculum, lesson plans, substitute access, student support and adaptations.
+2. **[Authorization model](docs/security-model.md)** — role + class scope + lesson-plan ownership, including hardening found during review.
+3. **[Lesson-plan service](planificador-backend/src/modules/planificaciones/planificaciones.service.ts)** — access checks, curriculum-integrity validation and transactional relation updates.
+4. **[Domain rationale](docs/domain-model.md)** — why temporary substitute access and student support are modeled separately.
+5. **[API map](docs/api.md)** — concise route-level overview.
 
 ## Stack
 
@@ -60,7 +72,8 @@ The code was reviewed specifically for publication. That review found and fixed 
 - class filters being overwritten by year filters;
 - lesson-plan creation not re-checking class assignment;
 - nested attachment/student/adaptation routes trusting resource IDs too much;
-- direct class-detail endpoints exposing more than the caller's scope.
+- direct class-detail endpoints exposing more than the caller's scope;
+- access tokens being persisted in browser storage instead of restored from the HTTP-only refresh cookie.
 
 Those fixes are part of the portfolio story rather than hidden history: code review and security hardening are engineering work.
 
@@ -115,12 +128,12 @@ Vite proxies `/api` requests to `http://localhost:3000`.
 
 ## Current status
 
-This is an **early-stage prototype**, not a finished commercial product. The backend/domain model is the strongest part of the project; UI, automated tests, audit history and deployment infrastructure are still areas for improvement.
+This is an **early-stage prototype**, not a finished commercial product. The backend/domain model is the strongest part of the project; UI, broader automated test coverage, audit history and deployment infrastructure are still areas for improvement.
 
 ## Next improvements
 
-- API/unit and authorization tests;
+- authorization integration tests beyond the current unit-test baseline;
 - production object storage for attachments;
-- CI and deployment configuration;
 - audit logging for sensitive school operations;
+- deployment configuration;
 - additional reporting and UI polish.

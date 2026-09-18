@@ -1,5 +1,6 @@
 import { Rol } from '@prisma/client';
 import { prisma } from './prisma';
+import { todayDateOnlyUtc } from './dateRange';
 
 export async function hasClassAccess(userId: string, rol: Rol, claseId: string): Promise<boolean> {
   if (rol === 'DIRECTORA' || rol === 'SECRETARIA') return true;
@@ -13,8 +14,7 @@ export async function hasClassAccess(userId: string, rol: Rol, claseId: string):
   }
 
   if (rol === 'SUPLENTE') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = todayDateOnlyUtc();
 
     const temporaryAccess = await prisma.accesoTemporalSuplencia.findFirst({
       where: {
