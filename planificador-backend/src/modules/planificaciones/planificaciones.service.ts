@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { Rol } from '@prisma/client';
 import { assertClassAccess as assertSharedClassAccess, assertPlanningWriteAccess } from '../../lib/access';
+import { todayDateOnlyUtc } from '../../lib/dateRange';
 
 const INCLUDE_FULL = {
   clase: { include: { anoLectivo: true } },
@@ -35,8 +36,7 @@ async function getClaseIdsParaUsuario(userId: string, rol: Rol): Promise<string[
   }
 
   if (rol === 'SUPLENTE') {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    const hoy = todayDateOnlyUtc();
     const accesos = await prisma.accesoTemporalSuplencia.findMany({
       where: {
         usuarioId: userId,
