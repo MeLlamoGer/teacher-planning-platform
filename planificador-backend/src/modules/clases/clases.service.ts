@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { Rol } from '@prisma/client';
+import { assertClassAccess } from '../../lib/access';
 
 const INCLUDE_ANO = { anoLectivo: true };
 
@@ -44,12 +45,17 @@ export async function getAll(userId: string, rol: Rol, anoLectivoId?: string) {
   return [];
 }
 
-export async function getById(id: string) {
+export async function getById(id: string, userId: string, rol: Rol) {
+  await assertClassAccess(userId, rol, id);
+
   const clase = await prisma.clase.findUnique({
     where: { id },
     include: {
       anoLectivo: true,
-      usuarios: { include: { usuario: { select: { id: true, nombre: true, email: true, rol: true } } } },
+      usuarios:
+        rol === 'DIRECTORA' || rol === 'SECRETARIA'
+          ? { include: { usuario: { select: { id: true, nombre: true, email: true, rol: true } } } }
+          : false,
     },
   });
   if (!clase) throw new Error('Clase no encontrada');
