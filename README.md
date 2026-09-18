@@ -1,6 +1,8 @@
 # Teacher Planning Platform
 
-A full-stack prototype for primary-school lesson planning, curriculum alignment and role-based collaboration. The application models a school workflow rather than a generic CRUD demo: teachers create plans against curriculum content, administrators manage classes/users, substitutes receive temporary access, and student-specific support/adaptations can be tracked.
+A full-stack prototype for primary-school lesson planning, curriculum alignment and role-based collaboration.
+
+The application models a school workflow rather than a generic CRUD demo: teachers plan against structured curriculum content, administrators manage classes/users, substitutes receive temporary access, and student-specific support/adaptations can be represented.
 
 > **Portfolio / privacy note**
 > The public version is anonymized. Demo student records are synthetic and no real student data, school credentials or private deployment secrets are included.
@@ -12,7 +14,7 @@ A full-stack prototype for primary-school lesson planning, curriculum alignment 
 - React Router
 - TanStack Query
 - Zustand
-- React Hook Form + Zod
+- Zod
 - FullCalendar
 - Recharts
 
@@ -20,22 +22,22 @@ A full-stack prototype for primary-school lesson planning, curriculum alignment 
 - Node.js + Express + TypeScript
 - Prisma ORM + PostgreSQL
 - JWT access/refresh authentication
-- Role-based authorization middleware
+- role- and class-scoped authorization
 - Zod request validation
-- Multer for controlled PDF/image uploads
+- Multer + controlled local file storage
 
-## Main capabilities
+## Main capabilities represented in the public snapshot
 
-- Authentication with short-lived access tokens and HTTP-only refresh cookies
-- Roles for teachers, administrators, secretaries and substitute teachers
-- Academic-year and class management
-- Temporary substitute-teacher access windows
-- Curriculum spaces, units, competencies and content blocks
-- Lesson-plan creation, editing and bulk scheduling across dates
-- Calendar-based planning views
-- Student lists plus support needs and plan adaptations
-- Attachments and comments
-- Reporting endpoints and frontend reporting views
+- short-lived access tokens + HTTP-only refresh cookies;
+- roles for teachers, administrators, secretaries and substitute teachers;
+- academic-year and class management;
+- time-bounded substitute-teacher access;
+- curriculum spaces, units, competencies and content blocks;
+- lesson-plan creation/editing/bulk scheduling logic;
+- class-scoped attachments and comments;
+- student support needs and plan-specific adaptations;
+- coverage reporting;
+- a trimmed React UI for calendar, students, reports and administration views.
 
 ## Architecture
 
@@ -43,13 +45,30 @@ A full-stack prototype for primary-school lesson planning, curriculum alignment 
 flowchart LR
     B[React / Vite] -->|REST + Bearer token| API[Express API]
     B -->|HTTP-only refresh cookie| API
-    API --> AUTH[JWT + RBAC middleware]
+    API --> AUTH[JWT + RBAC / class scope]
     API --> ORM[Prisma ORM]
     ORM --> DB[(PostgreSQL)]
     API --> FS[Controlled file storage]
 ```
 
-The backend keeps authorization checks close to the domain. Teachers are scoped to assigned classes, substitute teachers receive time-bounded class access, while administrative roles can work across classes.
+The backend keeps authorization checks close to the domain. A role alone is not enough: teachers are scoped to assigned classes, substitute teachers receive time-bounded class access, and nested resources such as attachments/adaptations inherit the class scope of their parent records.
+
+## Review notes
+
+The code was reviewed specifically for publication. That review found and fixed several early-stage authorization edge cases, including:
+
+- class filters being overwritten by year filters;
+- lesson-plan creation not re-checking class assignment;
+- nested attachment/student/adaptation routes trusting resource IDs too much;
+- direct class-detail endpoints exposing more than the caller's scope.
+
+Those fixes are part of the portfolio story rather than hidden history: code review and security hardening are engineering work.
+
+See:
+
+- [Domain model](docs/domain-model.md)
+- [Security model](docs/security-model.md)
+- [Public snapshot scope](docs/public-snapshot.md)
 
 ## Data model highlights
 
@@ -62,32 +81,25 @@ The Prisma schema includes relationships for:
 - students, support needs and adaptations;
 - attachments and comments.
 
-This makes the project useful as an example of domain modeling and authorization, not only frontend work.
-
-## Run locally
-
-### 1. Start PostgreSQL
+## Local backend setup
 
 ```bash
 docker compose up -d
-```
 
-### 2. Backend
-
-```bash
 cd planificador-backend
 cp .env.example .env
-# Set DATABASE_URL to:
-# postgresql://teacher_planner:teacher_planner@localhost:5432/teacher_planner
+
 npm install
 npx prisma migrate dev
 npm run db:seed
 npm run dev
 ```
 
-### 3. Frontend
+The seed requires `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` from the environment and creates only synthetic portfolio data.
 
-In another terminal:
+## Public frontend
+
+The original prototype contains more work-in-progress UI than is useful in a public code review. The public frontend is deliberately trimmed to a smaller read-oriented portfolio surface around the same API/domain model.
 
 ```bash
 cd planificador-frontend
@@ -95,21 +107,16 @@ npm install
 npm run dev
 ```
 
-The Vite development server proxies API requests to `http://localhost:3000`.
-
-## Demo data
-
-Seed files contain curriculum structure and **synthetic** student records. Admin credentials are supplied through environment variables and must not be committed.
+Vite proxies `/api` requests to `http://localhost:3000`.
 
 ## Current status
 
-This is an early-stage prototype, not a finished commercial product. The core backend/domain model is substantially developed; UI and deployment polish are still in progress. Keeping that distinction explicit is intentional: the repository is meant to show the engineering decisions and current state honestly.
+This is an **early-stage prototype**, not a finished commercial product. The backend/domain model is the strongest part of the project; UI, automated tests, audit history and deployment infrastructure are still areas for improvement.
 
 ## Next improvements
 
-- automated API/unit tests;
-- end-to-end authorization tests;
-- object storage for production attachments;
-- deployment configuration and CI;
-- stronger audit history for sensitive school operations;
-- additional reporting and UX polish.
+- API/unit and authorization tests;
+- production object storage for attachments;
+- CI and deployment configuration;
+- audit logging for sensitive school operations;
+- additional reporting and UI polish.
