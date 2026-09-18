@@ -4,6 +4,7 @@ import { ALERT_THRESHOLD_DAYS } from '../../config/constants';
 
 async function getClaseIdsPermitidos(userId: string, rol: Rol): Promise<string[] | null> {
   if (rol === 'DIRECTORA' || rol === 'SECRETARIA') return null;
+
   if (rol === 'MAESTRA') {
     const asignaciones = await prisma.usuarioClase.findMany({
       where: { usuarioId: userId },
@@ -11,7 +12,14 @@ async function getClaseIdsPermitidos(userId: string, rol: Rol): Promise<string[]
     });
     return asignaciones.map((a) => a.claseId);
   }
+
   return [];
+}
+
+function intersectRequestedClass(allowed: string[] | null, requested?: string) {
+  if (allowed === null) return requested ? [requested] : null;
+  if (!requested) return allowed;
+  return allowed.includes(requested) ? [requested] : [];
 }
 
 export async function getCobertura(
@@ -19,28 +27,22 @@ export async function getCobertura(
   rol: Rol,
   filters: { claseId?: string; anoLectivoId?: string; fechaInicio?: string; fechaFin?: string }
 ) {
-  const claseIdsPermitidos = await getClaseIdsPermitidos(userId, rol);
+  const allowed = await getClaseIdsPermitidos(userId, rol);
+  const effectiveClassIds = intersectRequestedClass(allowed, filters.claseId);
 
-  const classFilter =
-    claseIdsPermitidos === null
-      ? filters.claseId
-        ? { id: filters.claseId }
-        : undefined
-      : { id: { in: filters.claseId ? [filters.claseId] : claseIdsPermitidos } };
-
-  const clase = {
-    ...(classFilter ?? {}),
+  const claseWhere = {
+    ...(effectiveClassIds !== null ? { id: { in: effectiveClassIds } } : {}),
     ...(filters.anoLectivoId ? { anoLectivoId: filters.anoLectivoId } : {}),
   };
 
-  const fecha = {
+  const fechaWhere = {
     ...(filters.fechaInicio ? { gte: new Date(filters.fechaInicio) } : {}),
     ...(filters.fechaFin ? { lte: new Date(filters.fechaFin) } : {}),
   };
 
   const planificacionWhere = {
-    ...(Object.keys(clase).length ? { clase } : {}),
-    ...(Object.keys(fecha).length ? { fecha } : {}),
+    ...(Object.keys(claseWhere).length ? { clase: claseWhere } : {}),
+    ...(Object.keys(fechaWhere).length ? { fecha: fechaWhere } : {}),
   };
 
   const [porEspacio, porUnidad] = await Promise.all([
@@ -77,18 +79,13 @@ export async function getCobertura(
 }
 
 export async function getAlertas(userId: string, rol: Rol, claseId?: string) {
-  const claseIdsPermitidos = await getClaseIdsPermitidos(userId, rol);
+  const allowed = await getClaseIdsPermitidos(userId, rol);
+  const effectiveClassIds = intersectRequestedClass(allowed, claseId);
 
   const claseIds =
-    claseIdsPermitidos === null
-      ? claseId
-        ? [claseId]
-        : (await prisma.clase.findMany({ select: { id: true } })).map((c) => c.id)
-      : claseId
-        ? claseIdsPermitidos.includes(claseId)
-          ? [claseId]
-          : []
-        : claseIdsPermitidos;
+    effectiveClassIds === null
+      ? (await prisma.clase.findMany({ select: { id: true } })).map((c) => c.id)
+      : effectiveClassIds;
 
   const now = new Date();
   const espacios = await prisma.espacioCurricular.findMany({ orderBy: { orden: 'asc' } });
@@ -126,7 +123,7 @@ export async function getAlertas(userId: string, rol: Rol, claseId?: string) {
           espacioNombre: espacio.nombre,
           diasSinPlanificacion,
           mensaje: ultima
-            ? `${claseNombre ?? 'Clase'}: Sin planificaciones en "${espacio.nombre}" en los últimos ${diasSinPlanificacion} días`
+            ? `${claseNombre ?? 'Clase'}: Sin planificaciones en "${espacio.nombre}" hace ${diasSinPlanificacion} días`
             : `${claseNombre ?? 'Clase'}: Nunca se planificó "${espacio.nombre}"`,
         });
       }
