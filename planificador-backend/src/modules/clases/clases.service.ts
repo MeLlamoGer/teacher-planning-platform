@@ -79,8 +79,19 @@ export async function update(id: string, data: Partial<Parameters<typeof create>
 }
 
 export async function asignarUsuario(claseId: string, usuarioId: string) {
-  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
-  if (!usuario) throw new Error('Usuario no encontrado');
+  const [usuario, clase] = await Promise.all([
+    prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { id: true, rol: true, activo: true },
+    }),
+    prisma.clase.findUnique({ where: { id: claseId }, select: { id: true } }),
+  ]);
+
+  if (!usuario || !usuario.activo) throw new Error('Usuario no encontrado o inactivo');
+  if (!clase) throw new Error('Clase no encontrada');
+  if (usuario.rol !== 'MAESTRA') {
+    throw new Error('Las asignaciones permanentes de clase solo se pueden crear para usuarios con rol MAESTRA');
+  }
 
   return prisma.usuarioClase.upsert({
     where: { usuarioId_claseId: { usuarioId, claseId } },
