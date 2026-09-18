@@ -1,18 +1,27 @@
-import { prisma } from '../../lib/prisma';
 import { Rol } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
+import { assertClassAccess } from '../../lib/access';
 
 const INCLUDE = {
   autor: { select: { id: true, nombre: true } },
 };
 
-export async function getByPlanificacion(planificacionId: string, userId: string, rol: Rol) {
-  if (rol === 'SUPLENTE' || rol === 'SECRETARIA') throw new Error('Acceso denegado');
-
+async function getPlanningAccessContext(planificacionId: string) {
   const planificacion = await prisma.planificacion.findUnique({
     where: { id: planificacionId },
-    select: { autorCreacionId: true },
+    select: { autorCreacionId: true, claseId: true },
   });
   if (!planificacion) throw new Error('Planificación no encontrada');
+  return planificacion;
+}
+
+export async function getByPlanificacion(planificacionId: string, userId: string, rol: Rol) {
+  if (rol === 'SUPLENTE' || rol === 'SECRETARIA') {
+    throw new Error('Acceso denegado');
+  }
+
+  const planificacion = await getPlanningAccessContext(planificacionId);
+  await assertClassAccess(userId, rol, planificacion.claseId);
 
   if (rol === 'MAESTRA' && planificacion.autorCreacionId !== userId) {
     throw new Error('Acceso denegado');
