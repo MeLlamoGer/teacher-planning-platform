@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { Rol } from '@prisma/client';
-import { assertClassAccess as assertSharedClassAccess } from '../../lib/access';
+import { assertClassAccess as assertSharedClassAccess, assertPlanningWriteAccess } from '../../lib/access';
 
 const INCLUDE_FULL = {
   clase: { include: { anoLectivo: true } },
@@ -327,7 +327,7 @@ export async function update(
   });
   if (!planificacion) throw new Error('Planificación no encontrada');
 
-  await assertSharedClassAccess(userId, rol, planificacion.claseId);
+  await assertPlanningWriteAccess(userId, rol, id);
 
   const finalSpace = data.espacioCurricularId ?? planificacion.espacioCurricularId;
   const finalUnits =
@@ -382,9 +382,6 @@ export async function update(
 }
 
 export async function remove(id: string, userId: string, rol: Rol) {
-  const planificacion = await prisma.planificacion.findUnique({ where: { id } });
-  if (!planificacion) throw new Error('Planificación no encontrada');
-
-  await assertSharedClassAccess(userId, rol, planificacion.claseId);
+  await assertPlanningWriteAccess(userId, rol, id);
   await prisma.planificacion.delete({ where: { id } });
 }
