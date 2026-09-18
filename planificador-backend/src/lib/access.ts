@@ -37,3 +37,28 @@ export async function assertClassAccess(userId: string, rol: Rol, claseId: strin
     throw new Error('Acceso denegado');
   }
 }
+
+export async function assertPlanningWriteAccess(
+  userId: string,
+  rol: Rol,
+  planificacionId: string
+): Promise<{ claseId: string; autorCreacionId: string }> {
+  const planificacion = await prisma.planificacion.findUnique({
+    where: { id: planificacionId },
+    select: { claseId: true, autorCreacionId: true },
+  });
+
+  if (!planificacion) throw new Error('Planificación no encontrada');
+
+  await assertClassAccess(userId, rol, planificacion.claseId);
+
+  if (rol === 'MAESTRA' && planificacion.autorCreacionId !== userId) {
+    throw new Error('Solo la autora de la planificación puede modificarla');
+  }
+
+  if (rol !== 'MAESTRA' && rol !== 'DIRECTORA') {
+    throw new Error('Acceso denegado');
+  }
+
+  return planificacion;
+}
