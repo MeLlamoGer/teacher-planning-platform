@@ -34,7 +34,7 @@ router.put(
   validateBody(updateEstudianteSchema),
   async (req: Request, res: Response) => {
     try {
-      res.json(await service.update(req.params.estudianteId, req.body));
+      res.json(await service.update(req.params.claseId, req.params.estudianteId, req.body));
     } catch (err) {
       res.status(404).json({ error: (err as Error).message });
     }
