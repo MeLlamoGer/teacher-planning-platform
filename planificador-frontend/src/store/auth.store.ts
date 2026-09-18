@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Rol } from '@/types';
 
 interface AuthUser {
@@ -12,23 +11,27 @@ interface AuthUser {
 interface AuthStore {
   user: AuthUser | null;
   accessToken: string | null;
-  login: (token: string, user: AuthUser) => void;
-  setAccessToken: (token: string) => void;
+  initialized: boolean;
+  setSession: (token: string, user: AuthUser) => void;
+  setAccessToken: (token: string | null) => void;
+  setUser: (user: AuthUser | null) => void;
+  markInitialized: () => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set) => ({
-      user: null,
-      accessToken: null,
-      login: (token, user) => set({ accessToken: token, user }),
-      setAccessToken: (token) => set({ accessToken: token }),
-      logout: () => set({ user: null, accessToken: null }),
-    }),
-    {
-      name: 'planificador-auth',
-      storage: createJSONStorage(() => sessionStorage),
-    }
-  )
-);
+/**
+ * Access tokens intentionally live only in memory.
+ *
+ * A page reload rehydrates the session through the HTTP-only refresh cookie
+ * instead of persisting a bearer token in local/session storage.
+ */
+export const useAuthStore = create<AuthStore>((set) => ({
+  user: null,
+  accessToken: null,
+  initialized: false,
+  setSession: (token, user) => set({ accessToken: token, user, initialized: true }),
+  setAccessToken: (token) => set({ accessToken: token }),
+  setUser: (user) => set({ user }),
+  markInitialized: () => set({ initialized: true }),
+  logout: () => set({ user: null, accessToken: null, initialized: true }),
+}));
