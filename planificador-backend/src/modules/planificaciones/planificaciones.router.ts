@@ -37,18 +37,20 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.post('/', authorize('MAESTRA', 'DIRECTORA'), validateBody(createPlanificacionSchema), async (req: Request, res: Response) => {
   try {
-    res.status(201).json(await service.create(req.body, req.user!.id));
+    res.status(201).json(await service.create(req.body, req.user!.id, req.user!.rol));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    const message = (err as Error).message;
+    res.status(message === 'Acceso denegado' ? 403 : 400).json({ error: message });
   }
 });
 
 router.post('/bulk', authorize('MAESTRA', 'DIRECTORA'), validateBody(bulkCreateSchema), async (req: Request, res: Response) => {
   try {
     const { templateData, fechas } = req.body;
-    res.status(201).json(await service.bulkCreate(templateData, fechas, req.user!.id));
+    res.status(201).json(await service.bulkCreate(templateData, fechas, req.user!.id, req.user!.rol));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    const message = (err as Error).message;
+    res.status(message === 'Acceso denegado' ? 403 : 400).json({ error: message });
   }
 });
 
@@ -66,7 +68,7 @@ router.put('/:id', authorize('MAESTRA', 'DIRECTORA'), validateBody(updatePlanifi
     res.json(await service.update(req.params.id, req.body, req.user!.id, req.user!.id, req.user!.rol));
   } catch (err) {
     const msg = (err as Error).message;
-    res.status(msg.includes('permisos') ? 403 : 404).json({ error: msg });
+    res.status(msg === 'Acceso denegado' ? 403 : 404).json({ error: msg });
   }
 });
 
@@ -76,7 +78,7 @@ router.delete('/:id', authorize('MAESTRA', 'DIRECTORA'), async (req: Request, re
     res.json({ mensaje: 'Planificación eliminada' });
   } catch (err) {
     const msg = (err as Error).message;
-    res.status(msg.includes('permisos') ? 403 : 404).json({ error: msg });
+    res.status(msg === 'Acceso denegado' ? 403 : 404).json({ error: msg });
   }
 });
 
@@ -88,7 +90,8 @@ router.post('/:id/archivos', authorize('MAESTRA', 'DIRECTORA'), upload.single('a
     }
     res.status(201).json(await archivosService.upload(req.params.id, req.file, req.user!.id, req.user!.rol));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    const message = (err as Error).message;
+    res.status(message === 'Acceso denegado' ? 403 : 400).json({ error: message });
   }
 });
 
