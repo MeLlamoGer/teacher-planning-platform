@@ -8,9 +8,19 @@ router.use(authenticate);
 
 router.get('/:id/download', async (req: Request, res: Response) => {
   try {
-    const { archivo, absolutePath } = await service.download(req.params.id, req.user!.id, req.user!.rol);
+    const { archivo, absolutePath } = await service.download(
+      req.params.id,
+      req.user!.id,
+      req.user!.rol
+    );
+
+    const safeFilename = archivo.nombreOriginal.replace(/["\r\n]/g, '_');
+
     res.setHeader('Content-Type', archivo.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${archivo.nombreOriginal}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename*=UTF-8''${encodeURIComponent(safeFilename)}`
+    );
     res.sendFile(absolutePath);
   } catch (err) {
     const message = (err as Error).message;
