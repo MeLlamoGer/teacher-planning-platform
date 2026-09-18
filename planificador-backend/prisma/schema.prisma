@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  MAESTRA
+  DIRECTORA
+  SECRETARIA
+  SUPLENTE
+}
+
+enum Tramo {
+  INICIAL_TRAMO_1
+  PRIMARIA_TRAMO_2
+  PRIMARIA_TRAMO_3
+  PRIMARIA_TRAMO_4
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  nombre       String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  rol          Rol
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  clases                  UsuarioClase[]
+  accesosTemporal         AccesoTemporalSuplencia[] @relation("SuplenciaUsuario")
+  suplenciasCreadas       AccesoTemporalSuplencia[] @relation("SuplenciaCreador")
+  planificacionesCreadas  Planificacion[]           @relation("AutorCreacion")
+  planificacionesEditadas Planificacion[]           @relation("AutorUltimaEdicion")
+  comentarios             Comentario[]
+
+  @@map("usuarios")
+}
+
+model AnoLectivo {
+  id        String   @id @default(uuid())
+  anio      Int      @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  clases Clase[]
+  @@map("anos_lectivos")
+}
+
+model Clase {
+  id           String   @id @default(uuid())
+  nombre       String
+  nivel        String
+  seccion      String
+  tramo        Tramo
+  anoLectivoId String   @map("ano_lectivo_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  anoLectivo      AnoLectivo                @relation(fields: [anoLectivoId], references: [id])
+  usuarios        UsuarioClase[]
+  planificaciones Planificacion[]
+  estudiantes     Estudiante[]
+  accesosTemporal AccesoTemporalSuplencia[]
+  @@unique([nivel, seccion, anoLectivoId])
+  @@map("clases")
+}
+
+model UsuarioClase {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  claseId   String   @map("clase_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  clase   Clase   @relation(fields: [claseId], references: [id])
+  @@unique([usuarioId, claseId])
+  @@map("usuario_clases")
+}
+
+model AccesoTemporalSuplencia {
+  id          String   @id @default(uuid())
+  usuarioId   String   @map("usuario_id")
+  claseId     String   @map("clase_id")
+  creadoPorId String   @map("creado_por_id")
+  fechaInicio DateTime @map("fecha_inicio") @db.Date
+  fechaFin    DateTime @map("fecha_fin") @db.Date
+  motivo      String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  usuario   Usuario @relation("SuplenciaUsuario", fields: [usuarioId], references: [id])
+  clase     Clase   @relation(fields: [claseId], references: [id])
+  creadoPor Usuario @relation("SuplenciaCreador", fields: [creadoPorId], references: [id])
+  @@map("accesos_temporales_suplencia")
+}
+
+model EspacioCurricular {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  color     String   @default("#6366f1")
+  orden     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  unidades        UnidadCurricular[]
+  planificaciones Planificacion[]
+  dificultades    DificultadApoyo[]
+  @@map("espacios_curriculares")
+}
+
+model UnidadCurricular {
+  id                  String   @id @default(uuid())
+  nombre              String
+  espacioCurricularId String   @map("espacio_curricular_id")
+  orden               Int
+  createdAt           DateTime @default(now()) @map("created_at")
+  espacioCurricular       EspacioCurricular             @relation(fields: [espacioCurricularId], references: [id])
+  planificaciones         PlanificacionUnidadCurricular[]
+  dificultades            DificultadApoyo[]
+  competenciasEspecificas CompetenciaEspecifica[]
+  bloquesContenido        BloqueContenido[]
+  @@unique([nombre, espacioCurricularId])
+  @@map("unidades_curriculares")
+}
+
+model CompetenciaEspecifica {
+  id                 String   @id @default(uuid())
+  codigo             String
+  descripcion        String   @db.Text
+  contribuyeA        String[]
+  unidadCurricularId String   @map("unidad_curricular_id")
+  tramo              Tramo
+  createdAt          DateTime @default(now()) @map("created_at")
+  unidadCurricular UnidadCurricular    @relation(fields: [unidadCurricularId], references: [id])
+  bloquesContenido BloqueContenidoCE[]
+  planificaciones  PlanificacionCE[]
+  @@unique([codigo, unidadCurricularId, tramo])
+  @@map("competencias_especificas")
+}
+
+model BloqueContenido {
+  id                     String   @id @default(uuid())
+  unidadCurricularId     String   @map("unidad_curricular_id")
+  tramo                  Tramo
+  nivel                  String
+  eje                    String
+  contenidoEstructurante String?  @map("contenido_estructurante")
+  criteriosDeLogro       String[] @map("criterios_de_logro")
+  unidadCurricular UnidadCurricular    @relation(fields: [unidadCurricularId], references: [id])
+  competencias     BloqueContenidoCE[]
+  items            ContenidoItem[]
+  @@map("bloques_contenido")
+}
+
+model ContenidoItem {
+  id                String   @id @default(uuid())
+  texto             String   @db.Text
+  orden             Int
+  bloqueContenidoId String   @map("bloque_contenido_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  bloque          BloqueContenido          @relation(fields: [bloqueContenidoId], references: [id], onDelete: Cascade)
+  planificaciones PlanificacionContenido[]
+  @@map("contenido_items")
+}
+
+model BloqueContenidoCE {
+  bloqueContenidoId       String @map("bloque_contenido_id")
+  competenciaEspecificaId String @map("competencia_especifica_id")
+  bloque      BloqueContenido       @relation(fields: [bloqueContenidoId], references: [id], onDelete: Cascade)
+  competencia CompetenciaEspecifica @relation(fields: [competenciaEspecificaId], references: [id], onDelete: Cascade)
+  @@id([bloqueContenidoId, competenciaEspecificaId])
+  @@map("bloque_contenido_ce")
+}
+
+model PlanificacionCE {
+  planificacionId         String @map("planificacion_id")
+  competenciaEspecificaId String @map("competencia_especifica_id")
+  planificacion Planificacion         @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  competencia   CompetenciaEspecifica @relation(fields: [competenciaEspecificaId], references: [id])
+  @@id([planificacionId, competenciaEspecificaId])
+  @@map("planificacion_ce")
+}
+
+model PlanificacionContenido {
+  planificacionId String @map("planificacion_id")
+  contenidoItemId String @map("contenido_item_id")
+  planificacion Planificacion @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  contenidoItem ContenidoItem @relation(fields: [contenidoItemId], references: [id])
+  @@id([planificacionId, contenidoItemId])
+  @@map("planificacion_contenidos")
+}
+
+model CompetenciaGeneral {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  orden     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("competencias_generales")
+}
+
+model Planificacion {
+  id                   String   @id @default(uuid())
+  titulo               String?
+  descripcion          String   @db.Text
+  metasAprendizaje     String?  @db.Text @map("metas_aprendizaje")
+  fecha                DateTime @db.Date
+  claseId              String   @map("clase_id")
+  espacioCurricularId  String   @map("espacio_curricular_id")
+  autorCreacionId      String   @map("autor_creacion_id")
+  autorUltimaEdicionId String   @map("autor_ultima_edicion_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  clase              Clase                           @relation(fields: [claseId], references: [id])
+  espacioCurricular  EspacioCurricular               @relation(fields: [espacioCurricularId], references: [id])
+  autorCreacion      Usuario                         @relation("AutorCreacion", fields: [autorCreacionId], references: [id])
+  autorUltimaEdicion Usuario                         @relation("AutorUltimaEdicion", fields: [autorUltimaEdicionId], references: [id])
+  unidades                   PlanificacionUnidadCurricular[]
+  competenciasEspecificas    PlanificacionCE[]
+  contenidos                 PlanificacionContenido[]
+  archivos                   ArchivoAdjunto[]
+  adaptaciones               Adaptacion[]
+  comentarios                Comentario[]
+  @@index([claseId, fecha, espacioCurricularId])
+  @@map("planificaciones")
+}
+
+model PlanificacionUnidadCurricular {
+  id                 String @id @default(uuid())
+  planificacionId    String @map("planificacion_id")
+  unidadCurricularId String @map("unidad_curricular_id")
+  planificacion    Planificacion    @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  unidadCurricular UnidadCurricular @relation(fields: [unidadCurricularId], references: [id])
+  @@unique([planificacionId, unidadCurricularId])
+  @@map("planificacion_unidad_curricular")
+}
+
+model ArchivoAdjunto {
+  id              String   @id @default(uuid())
+  planificacionId String   @map("planificacion_id")
+  nombreOriginal  String   @map("nombre_original")
+  rutaAlmacenada  String   @map("ruta_almacenada")
+  mimeType        String   @map("mime_type")
+  tamanoBytes     Int      @map("tamano_bytes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  planificacion Planificacion @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  @@map("archivos_adjuntos")
+}
+
+model Estudiante {
+  id           String   @id @default(uuid())
+  nombre       String
+  claseId      String   @map("clase_id")
+  anoLectivoId String   @map("ano_lectivo_id")
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  clase        Clase             @relation(fields: [claseId], references: [id])
+  dificultades DificultadApoyo[]
+  adaptaciones AdaptacionEstudiante[]
+  @@map("estudiantes")
+}
+
+model DificultadApoyo {
+  id                  String   @id @default(uuid())
+  estudianteId        String   @map("estudiante_id")
+  espacioCurricularId String?  @map("espacio_curricular_id")
+  unidadCurricularId  String?  @map("unidad_curricular_id")
+  observacion         String   @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  estudiante        Estudiante         @relation(fields: [estudianteId], references: [id])
+  espacioCurricular EspacioCurricular? @relation(fields: [espacioCurricularId], references: [id])
+  unidadCurricular  UnidadCurricular?  @relation(fields: [unidadCurricularId], references: [id])
+  @@map("dificultades_apoyo")
+}
+
+model Adaptacion {
+  id              String   @id @default(uuid())
+  planificacionId String   @map("planificacion_id")
+  descripcion     String   @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  planificacion Planificacion          @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  estudiantes   AdaptacionEstudiante[]
+  @@map("adaptaciones")
+}
+
+model AdaptacionEstudiante {
+  id           String @id @default(uuid())
+  adaptacionId String @map("adaptacion_id")
+  estudianteId String @map("estudiante_id")
+  adaptacion Adaptacion @relation(fields: [adaptacionId], references: [id], onDelete: Cascade)
+  estudiante Estudiante @relation(fields: [estudianteId], references: [id])
+  @@unique([adaptacionId, estudianteId])
+  @@map("adaptacion_estudiantes")
+}
+
+model Comentario {
+  id              String   @id @default(uuid())
+  planificacionId String   @map("planificacion_id")
+  autorId         String   @map("autor_id")
+  texto           String   @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  planificacion Planificacion @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  autor         Usuario       @relation(fields: [autorId], references: [id])
+  @@map("comentarios")
+}
