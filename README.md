@@ -68,6 +68,9 @@ See:
 
 - [Domain model](docs/domain-model.md)
 - [Security model](docs/security-model.md)
+- [API surface](docs/api.md)
+- [ADR: class-scoped authorization](docs/adr/001-class-scoped-authorization.md)
+- [ADR: curated public snapshot](docs/adr/002-curated-public-snapshot.md)
 - [Public snapshot scope](docs/public-snapshot.md)
 
 ## Data model highlights
@@ -92,6 +95,7 @@ cp .env.example .env
 npm install
 npm run db:push
 npm run db:seed
+npm test
 npm run dev
 ```
 
