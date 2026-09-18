@@ -8,7 +8,11 @@ const router = Router();
 
 router.post('/login', validateBody(loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
-router.post('/logout', authenticate, authController.logout);
+
+// Logout only clears the refresh cookie, so it must remain available even if
+// the short-lived access token has already expired.
+router.post('/logout', authController.logout);
+
 router.get('/me', authenticate, authController.me);
 
 export default router;
