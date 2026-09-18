@@ -40,6 +40,8 @@ export const planificacionesApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  downloadArchivo: (archivoId: string) =>
+    api.get<Blob>(`/archivos/${archivoId}/download`, { responseType: 'blob' }),
   deleteArchivo: (archivoId: string) => api.delete(`/archivos/${archivoId}`),
   getComentarios: (planificacionId: string) =>
     api.get<Comentario[]>(`/planificaciones/${planificacionId}/comentarios`),
