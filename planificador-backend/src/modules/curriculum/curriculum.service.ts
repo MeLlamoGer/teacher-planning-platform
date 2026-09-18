@@ -1,3 +1,4 @@
+import { Tramo } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 
 export async function getEspacios() {
@@ -19,19 +20,23 @@ export async function getCompetencias() {
   return prisma.competenciaGeneral.findMany({ orderBy: { orden: 'asc' } });
 }
 
-export async function getCompetenciasEspecificas(unidadCurricularId: string, tramo: string) {
+export async function getCompetenciasEspecificas(unidadCurricularId: string, tramo: Tramo) {
   return prisma.competenciaEspecifica.findMany({
-    where: { unidadCurricularId, tramo: tramo as any },
+    where: { unidadCurricularId, tramo },
     orderBy: { codigo: 'asc' },
     include: { bloquesContenido: { include: { bloque: true } } },
   });
 }
 
-export async function getBloquesContenido(unidadCurricularId: string, tramo: string, nivel?: string) {
+export async function getBloquesContenido(
+  unidadCurricularId: string,
+  tramo: Tramo,
+  nivel?: string
+) {
   return prisma.bloqueContenido.findMany({
     where: {
       unidadCurricularId,
-      tramo: tramo as any,
+      tramo,
       ...(nivel ? { nivel } : {}),
     },
     include: {
