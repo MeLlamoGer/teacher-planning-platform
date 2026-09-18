@@ -18,7 +18,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { setSession } = useAuthStore();
   const [error, setError] = useState('');
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
@@ -28,7 +28,7 @@ export function LoginPage() {
     setError('');
     try {
       const res = await authApi.login(data.email, data.password);
-      login(res.data.accessToken, res.data.usuario);
+      setSession(res.data.accessToken, res.data.usuario);
       navigate('/dashboard');
     } catch {
       setError('Email o contraseña incorrectos');
