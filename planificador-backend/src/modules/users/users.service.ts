@@ -41,6 +41,7 @@ export async function create(data: CreateUserInput) {
   if (existe) throw new Error('Ya existe un usuario con ese email');
 
   const passwordHash = await hashPassword(data.password);
+
   return prisma.usuario.create({
     data: {
       nombre: data.nombre,
@@ -53,7 +54,32 @@ export async function create(data: CreateUserInput) {
 }
 
 export async function update(id: string, data: UpdateUserInput) {
-  await getById(id);
+  const current = await prisma.usuario.findUnique({ where: { id } });
+  if (!current) throw new Error('Usuario no encontrado');
+
+  if (data.email && data.email !== current.email) {
+    const duplicate = await prisma.usuario.findUnique({ where: { email: data.email } });
+    if (duplicate) throw new Error('Ya existe un usuario con ese email');
+  }
+
+  if (data.rol && data.rol !== current.rol) {
+    if (current.rol === 'MAESTRA' && data.rol !== 'MAESTRA') {
+      const permanentAssignments = await prisma.usuarioClase.count({ where: { usuarioId: id } });
+      if (permanentAssignments > 0) {
+        throw new Error('Quitá las asignaciones permanentes de clase antes de cambiar el rol de la maestra');
+      }
+    }
+
+    if (current.rol === 'SUPLENTE' && data.rol !== 'SUPLENTE') {
+      const activeTemporaryAssignments = await prisma.accesoTemporalSuplencia.count({
+        where: { usuarioId: id, activo: true },
+      });
+      if (activeTemporaryAssignments > 0) {
+        throw new Error('Desactivá las suplencias vigentes antes de cambiar el rol del usuario');
+      }
+    }
+  }
+
   return prisma.usuario.update({
     where: { id },
     data,
@@ -62,7 +88,9 @@ export async function update(id: string, data: UpdateUserInput) {
 }
 
 export async function updatePassword(id: string, password: string) {
-  await getById(id);
+  const usuario = await prisma.usuario.findUnique({ where: { id }, select: { id: true } });
+  if (!usuario) throw new Error('Usuario no encontrado');
+
   const passwordHash = await hashPassword(password);
   await prisma.usuario.update({
     where: { id },
@@ -71,7 +99,9 @@ export async function updatePassword(id: string, password: string) {
 }
 
 export async function remove(id: string) {
-  await getById(id);
+  const usuario = await prisma.usuario.findUnique({ where: { id }, select: { id: true } });
+  if (!usuario) throw new Error('Usuario no encontrado');
+
   return prisma.usuario.update({
     where: { id },
     data: { activo: false },
