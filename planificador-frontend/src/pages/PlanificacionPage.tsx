@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Paperclip } from 'lucide-react';
 import { planificacionesApi } from '@/api/planificaciones.api';
 import { Button } from '@/components/ui/Button';
 import { formatDate, formatFileSize } from '@/lib/utils';
+import type { ArchivoAdjunto } from '@/types';
 
 export function PlanificacionPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,22 @@ export function PlanificacionPage() {
     queryFn: () => planificacionesApi.getById(id!).then((r) => r.data),
     enabled: !!id,
   });
+
+  async function downloadAttachment(archivo: ArchivoAdjunto) {
+    const response = await planificacionesApi.downloadArchivo(archivo.id);
+    const url = URL.createObjectURL(response.data);
+
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = archivo.nombreOriginal;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
 
   if (isLoading) return <div className="p-8 text-gray-500">Cargando...</div>;
 
@@ -87,19 +104,18 @@ export function PlanificacionPage() {
         ) : (
           <div className="space-y-2">
             {planificacion.archivos.map((archivo) => (
-              <a
+              <button
                 key={archivo.id}
-                href={`/api/v1/archivos/${archivo.id}/download`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 hover:bg-gray-50"
+                type="button"
+                onClick={() => void downloadAttachment(archivo)}
+                className="w-full flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 text-left hover:bg-gray-50"
               >
                 <span>
                   <span className="block text-sm text-gray-800">{archivo.nombreOriginal}</span>
                   <span className="block text-xs text-gray-400">{formatFileSize(archivo.tamanoBytes)}</span>
                 </span>
                 <Download className="h-4 w-4 text-gray-500" />
-              </a>
+              </button>
             ))}
           </div>
         )}
