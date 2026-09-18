@@ -14,9 +14,10 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    res.json(await service.getById(req.params.id));
+    res.json(await service.getById(req.params.id, req.user!.id, req.user!.rol));
   } catch (err) {
-    res.status(404).json({ error: (err as Error).message });
+    const message = (err as Error).message;
+    res.status(message === 'Acceso denegado' ? 403 : 404).json({ error: message });
   }
 });
 
