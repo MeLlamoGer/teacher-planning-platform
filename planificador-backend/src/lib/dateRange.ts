@@ -26,3 +26,11 @@ export function rangesOverlap(
 ): boolean {
   return startA <= endB && endA >= startB;
 }
+
+export function todayDateOnlyUtc(now: Date = new Date()): Date {
+  return new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate()
+  ));
+}
