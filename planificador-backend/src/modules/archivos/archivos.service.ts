@@ -1,12 +1,16 @@
 import { prisma } from '../../lib/prisma';
 import { storageService } from '../../lib/storage';
 import { Rol } from '@prisma/client';
-import { assertClassAccess } from '../../lib/access';
+import { assertClassAccess, assertPlanningWriteAccess } from '../../lib/access';
 
 async function getArchivoConPlanificacion(id: string) {
   const archivo = await prisma.archivoAdjunto.findUnique({
     where: { id },
-    include: { planificacion: { select: { claseId: true } } },
+    include: {
+      planificacion: {
+        select: { id: true, claseId: true, autorCreacionId: true },
+      },
+    },
   });
   if (!archivo) throw new Error('Archivo no encontrado');
   return archivo;
@@ -18,13 +22,7 @@ export async function upload(
   userId: string,
   rol: Rol
 ) {
-  const planificacion = await prisma.planificacion.findUnique({
-    where: { id: planificacionId },
-    select: { claseId: true },
-  });
-  if (!planificacion) throw new Error('Planificación no encontrada');
-
-  await assertClassAccess(userId, rol, planificacion.claseId);
+  await assertPlanningWriteAccess(userId, rol, planificacionId);
 
   const stored = await storageService.save(file);
 
@@ -39,7 +37,6 @@ export async function upload(
       },
     });
   } catch (error) {
-    // Avoid leaving an orphan file behind when the database write fails.
     await storageService.delete(stored.rutaAlmacenada);
     throw error;
   }
@@ -57,10 +54,8 @@ export async function download(id: string, userId: string, rol: Rol) {
 
 export async function remove(id: string, userId: string, rol: Rol) {
   const archivo = await getArchivoConPlanificacion(id);
-  await assertClassAccess(userId, rol, archivo.planificacion.claseId);
+  await assertPlanningWriteAccess(userId, rol, archivo.planificacion.id);
 
-  // Delete the database reference first. A failed filesystem cleanup leaves an
-  // orphan file rather than a live DB row pointing at a missing attachment.
   await prisma.archivoAdjunto.delete({ where: { id } });
   await storageService.delete(archivo.rutaAlmacenada);
 }
