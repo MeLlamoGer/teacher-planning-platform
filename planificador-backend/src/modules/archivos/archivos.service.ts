@@ -1,34 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { storageService } from '../../lib/storage';
 import { Rol } from '@prisma/client';
-
-async function assertClassAccess(userId: string, rol: Rol, claseId: string) {
-  if (rol === 'DIRECTORA' || rol === 'SECRETARIA') return;
-
-  if (rol === 'MAESTRA') {
-    const asignacion = await prisma.usuarioClase.findUnique({
-      where: { usuarioId_claseId: { usuarioId: userId, claseId } },
-    });
-    if (asignacion) return;
-  }
-
-  if (rol === 'SUPLENTE') {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const acceso = await prisma.accesoTemporalSuplencia.findFirst({
-      where: {
-        usuarioId: userId,
-        claseId,
-        activo: true,
-        fechaInicio: { lte: hoy },
-        fechaFin: { gte: hoy },
-      },
-    });
-    if (acceso) return;
-  }
-
-  throw new Error('Acceso denegado');
-}
+import { assertClassAccess } from '../../lib/access';
 
 async function getArchivoConPlanificacion(id: string) {
   const archivo = await prisma.archivoAdjunto.findUnique({
@@ -54,20 +27,28 @@ export async function upload(
   await assertClassAccess(userId, rol, planificacion.claseId);
 
   const stored = await storageService.save(file);
-  return prisma.archivoAdjunto.create({
-    data: {
-      planificacionId,
-      nombreOriginal: stored.nombreOriginal,
-      rutaAlmacenada: stored.rutaAlmacenada,
-      mimeType: stored.mimeType,
-      tamanoBytes: stored.tamanoBytes,
-    },
-  });
+
+  try {
+    return await prisma.archivoAdjunto.create({
+      data: {
+        planificacionId,
+        nombreOriginal: stored.nombreOriginal,
+        rutaAlmacenada: stored.rutaAlmacenada,
+        mimeType: stored.mimeType,
+        tamanoBytes: stored.tamanoBytes,
+      },
+    });
+  } catch (error) {
+    // Avoid leaving an orphan file behind when the database write fails.
+    await storageService.delete(stored.rutaAlmacenada);
+    throw error;
+  }
 }
 
 export async function download(id: string, userId: string, rol: Rol) {
   const archivo = await getArchivoConPlanificacion(id);
   await assertClassAccess(userId, rol, archivo.planificacion.claseId);
+
   return {
     archivo,
     absolutePath: storageService.getAbsolutePath(archivo.rutaAlmacenada),
@@ -78,6 +59,8 @@ export async function remove(id: string, userId: string, rol: Rol) {
   const archivo = await getArchivoConPlanificacion(id);
   await assertClassAccess(userId, rol, archivo.planificacion.claseId);
 
-  await storageService.delete(archivo.rutaAlmacenada);
+  // Delete the database reference first. A failed filesystem cleanup leaves an
+  // orphan file rather than a live DB row pointing at a missing attachment.
   await prisma.archivoAdjunto.delete({ where: { id } });
+  await storageService.delete(archivo.rutaAlmacenada);
 }
