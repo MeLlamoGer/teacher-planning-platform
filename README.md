@@ -90,12 +90,12 @@ cd planificador-backend
 cp .env.example .env
 
 npm install
-npx prisma migrate dev
+npm run db:push
 npm run db:seed
 npm run dev
 ```
 
-The seed requires `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` from the environment and creates only synthetic portfolio data.
+The public snapshot intentionally does not publish historical development migrations, because the schema evolved during prototyping. `db:push` creates the current portfolio schema directly from Prisma. The seed requires `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` from the environment and creates only synthetic portfolio data.
 
 ## Public frontend
 
