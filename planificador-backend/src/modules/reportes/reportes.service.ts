@@ -85,16 +85,29 @@ export async function getAlertas(userId: string, rol: Rol, claseId?: string) {
         ? [claseId]
         : (await prisma.clase.findMany({ select: { id: true } })).map((c) => c.id)
       : claseId
-        ? [claseId]
+        ? claseIdsPermitidos.includes(claseId)
+          ? [claseId]
+          : []
         : claseIdsPermitidos;
 
-  const threshold = new Date();
-  threshold.setDate(threshold.getDate() - ALERT_THRESHOLD_DAYS);
-
+  const now = new Date();
   const espacios = await prisma.espacioCurricular.findMany({ orderBy: { orden: 'asc' } });
-  const alertas: { claseId: string; espacioNombre: string; mensaje: string }[] = [];
+  const clases = await prisma.clase.findMany({
+    where: { id: { in: claseIds } },
+    select: { id: true, nombre: true },
+  });
+
+  const alertas: {
+    claseId: string;
+    claseNombre?: string;
+    espacioNombre: string;
+    diasSinPlanificacion: number;
+    mensaje: string;
+  }[] = [];
 
   for (const cid of claseIds) {
+    const claseNombre = clases.find((c) => c.id === cid)?.nombre;
+
     for (const espacio of espacios) {
       const ultima = await prisma.planificacion.findFirst({
         where: { claseId: cid, espacioCurricularId: espacio.id },
@@ -102,17 +115,23 @@ export async function getAlertas(userId: string, rol: Rol, claseId?: string) {
         select: { fecha: true },
       });
 
-      if (!ultima || ultima.fecha < threshold) {
-        const claseInfo = await prisma.clase.findUnique({ where: { id: cid }, select: { nombre: true } });
+      const diasSinPlanificacion = ultima
+        ? Math.max(0, Math.floor((now.getTime() - ultima.fecha.getTime()) / 86_400_000))
+        : ALERT_THRESHOLD_DAYS + 1;
+
+      if (!ultima || diasSinPlanificacion >= ALERT_THRESHOLD_DAYS) {
         alertas.push({
           claseId: cid,
+          claseNombre,
           espacioNombre: espacio.nombre,
+          diasSinPlanificacion,
           mensaje: ultima
-            ? `${claseInfo?.nombre}: Sin planificaciones en "${espacio.nombre}" en los últimos ${ALERT_THRESHOLD_DAYS} días`
-            : `${claseInfo?.nombre}: Nunca se planificó "${espacio.nombre}"`,
+            ? `${claseNombre ?? 'Clase'}: Sin planificaciones en "${espacio.nombre}" en los últimos ${diasSinPlanificacion} días`
+            : `${claseNombre ?? 'Clase'}: Nunca se planificó "${espacio.nombre}"`,
         });
       }
     }
   }
+
   return alertas;
 }
